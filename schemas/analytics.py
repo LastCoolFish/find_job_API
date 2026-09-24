@@ -1,11 +1,11 @@
 from pydantic import BaseModel
 
 
-class CompanyVacancyCount(BaseModel):
+class CompanyVacancyCountSchema(BaseModel):
     name: str
     vacancy_count: int
 
 
-class SkillDemand(BaseModel):
+class SkillDemandSchema(BaseModel):
     name: str
     vacancy_count: int

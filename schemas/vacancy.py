@@ -1,9 +1,9 @@
 from pydantic import BaseModel
 
-from schemas.skill import SkillOut
+from schemas.skill import SkillOutSchema
 
 
-class CompanyBrief(BaseModel):
+class CompanyBriefSchema(BaseModel):
     id: int
     name: str
     rating: int | None
@@ -12,7 +12,7 @@ class CompanyBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class VacancyOut(BaseModel):
+class VacancyOutSchema(BaseModel):
     id: int
     job_title: str
     salary: int | None
@@ -21,7 +21,32 @@ class VacancyOut(BaseModel):
     grade: int | None
     format: str | None
     platform: str
-    company: CompanyBrief
-    skills: list[SkillOut]
+    platform_id: int
+    company: CompanyBriefSchema
+    skills: list[SkillOutSchema]
 
     model_config = {"from_attributes": True}
+
+
+class VacancyCreateSchema(BaseModel):
+    job_title: str
+    salary: int | None = None
+    description: str
+    place: str | None = None
+    grade: int | None = None
+    format: str | None = None
+    platform: str
+    platform_id: int
+    company_id: int
+
+
+class VacancyUpdateSchema(BaseModel):
+    job_title: str | None = None
+    salary: int | None = None
+    description: str | None = None
+    place: str | None = None
+    grade: int | None = None
+    format: str | None = None
+    platform: str | None = None
+    platform_id: int | None = None
+    company_id: int | None = None
