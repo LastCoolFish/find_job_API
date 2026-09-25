@@ -3,7 +3,6 @@ from functools import wraps
 from decouple import config
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from db.models.BaseModel import BaseModel
 from logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -31,12 +30,3 @@ def request(func):
                 raise
 
     return wrapper
-
-
-async def create_tables():
-    logger.info("Creating tables if they do not exist")
-    async with engine.begin() as conn:
-        await conn.run_sync(
-            lambda connection: BaseModel.metadata.create_all(connection)
-        )
-    logger.info("Successfully")
