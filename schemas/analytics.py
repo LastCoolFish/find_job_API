@@ -16,3 +16,10 @@ class SkillDemandSchema(BaseModel):
     vacancy_count: int
 
     model_config = {"from_attributes": True}
+
+
+class EngagementAnalyticsSchema(BaseModel):
+    avg_view_duration: float | None
+    link_clicks: int
+    total_views: int
+    ctr: float

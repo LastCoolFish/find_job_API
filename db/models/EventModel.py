@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import Enum as PgEnum, ForeignKey
+from sqlalchemy import Enum as PgEnum, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -22,6 +22,11 @@ class EventTypeEnum(str, enum.Enum):
 class EventModel(BaseModel):
     __tablename__ = "events"
 
+    __table_args__ = (
+        Index("ix_events_order_id_event_type", "order_id", "event_type"),
+        Index("ix_events_vacancy_id_event_type", "vacancy_id", "event_type"),
+    )
+
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"),
         index=True,
@@ -38,12 +43,10 @@ class EventModel(BaseModel):
     # both are null for a SEARCH event.
     vacancy_id: Mapped[int | None] = mapped_column(
         ForeignKey("vacancies.id", ondelete="SET NULL", onupdate="CASCADE"),
-        index=True,
         nullable=True,
     )
     order_id: Mapped[int | None] = mapped_column(
         ForeignKey("orders.id", ondelete="SET NULL", onupdate="CASCADE"),
-        index=True,
         nullable=True,
     )
 
