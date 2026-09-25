@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from logging_config import get_logger
 from repositories.VacancyRepository import VacancyRepository
@@ -16,6 +16,13 @@ VacancyRepoDep = Annotated[VacancyRepository, Depends()]
 @router.get("")
 async def get_all_vacancies(vacancy_repository: VacancyRepoDep) -> list[VacancyOutSchema]:
     vacancies = await vacancy_repository.get_all()
+    return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
+
+
+@router.get("/by-skills")
+async def get_vacancies_by_skills(
+    skills_id: Annotated[list[int], Query()], vacancy_repository: VacancyRepoDep) -> list[VacancyOutSchema]:
+    vacancies = await vacancy_repository.get_by_skills(skills_id)
     return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
 
 

@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from schemas.skill import SkillOutSchema
 
 
 class CompanyVacancyCountSchema(BaseModel):
@@ -7,5 +9,7 @@ class CompanyVacancyCountSchema(BaseModel):
 
 
 class SkillDemandSchema(BaseModel):
-    name: str
+    skill: SkillOutSchema = Field(validation_alias="SkillModel")
     vacancy_count: int
+
+    model_config = {"from_attributes": True}

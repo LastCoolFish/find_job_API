@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from db.models.BaseModel import BaseModel
 
 
-class VacancySkill(BaseModel):
+class VacancySkillModel(BaseModel):
     __tablename__ = "vacancies_skills"
 
     # Pure association table - exclude the surrogate id inherited from BaseModel
