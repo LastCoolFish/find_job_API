@@ -6,10 +6,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from db.models.SkillAssociationModel import SkillAssociationModel
 
 
-class VacancySkillModel(SkillAssociationModel):
-    __tablename__ = "vacancies_skills"
+class ProfileSkillModel(SkillAssociationModel):
+    __tablename__ = "profiles_skills"
 
-    vacancy_id: Mapped[int] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE", onupdate="CASCADE"),
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("profiles.id", ondelete="CASCADE", onupdate="CASCADE"),
         primary_key=True,
     )
