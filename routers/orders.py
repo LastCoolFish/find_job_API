@@ -92,4 +92,5 @@ async def delete_order(order_id: int, order_repository: OrderRepoDep) -> None:
     order = await order_repository.delete_by_id(order_id)
     if order is None:
         logger.warning(f"Order id={order_id} not found")
+        raise HTTPException(status_code=404, detail="Order not found")
 

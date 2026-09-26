@@ -1,4 +1,4 @@
-from db.models.BaseModel import BaseModel
+from db.models.BaseModels import BaseModel
 from db.models.CompanyModel import CompanyModel
 from db.models.CustomerModel import CustomerModel
 from db.models.EventModel import EventModel

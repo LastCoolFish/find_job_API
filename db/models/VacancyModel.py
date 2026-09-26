@@ -4,8 +4,7 @@ from sqlalchemy import String, ForeignKey, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.sqltypes import Text, SmallInteger, Integer
 
-from db.models.BaseModel import BaseModel
-from db.models.CompanyModel import CompanyModel
+from db.models.BaseModels import BaseModel
 
 
 class VacancyModel(BaseModel):

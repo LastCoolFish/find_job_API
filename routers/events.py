@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from db.models.EventModel import EventTarget
 from logging_config import get_logger
 from repositories.EventRepository import EventRepository
 from schemas.event import EventCreate, EventOutSchema
@@ -41,7 +42,7 @@ async def get_orders_views(
     :return: dict of {order_id: view_count}; orders with no views get 0
     """
     logger.info(f"Fetching order views order_ids={order_ids}")
-    return await event_repository.get_orders_views(order_ids)
+    return await event_repository.get_views(EventTarget.ORDER, order_ids)
 
 
 @router.get("/vacancies-views")
@@ -57,4 +58,4 @@ async def get_vacancies_views(
     :return: dict of {vacancy_id: view_count}; vacancies with no views get 0
     """
     logger.info(f"Fetching vacancy views vacancies_ids={vacancies_ids}")
-    return await event_repository.get_vacancies_views(vacancies_ids)
+    return await event_repository.get_views(EventTarget.VACANCY, vacancies_ids)

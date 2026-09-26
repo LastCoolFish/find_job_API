@@ -108,3 +108,4 @@ async def delete_vacancy(vacancy_id: int, vacancy_repository: VacancyRepoDep) ->
     vacancy = await vacancy_repository.delete_by_id(vacancy_id)
     if vacancy is None:
         logger.warning(f"Vacancy id={vacancy_id} not found")
+        raise HTTPException(status_code=404, detail="Vacancy not found")

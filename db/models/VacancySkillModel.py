@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
-from db.models.SkillAssociationModel import SkillAssociationModel
+from db.models.BaseModels import SkillAssociationModel
 
 
 class VacancySkillModel(SkillAssociationModel):

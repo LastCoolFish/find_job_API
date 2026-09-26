@@ -4,7 +4,7 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.sqltypes import Integer, SmallInteger
 
-from db.models.BaseModel import BaseModel
+from db.models.BaseModels import BaseModel
 
 
 class ProfileModel(BaseModel):

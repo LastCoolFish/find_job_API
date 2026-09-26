@@ -88,4 +88,5 @@ async def delete_skill(skill_id: int, skill_repository: SkillRepoDep) -> None:
     skill = await skill_repository.delete_by_id(skill_id)
     if skill is None:
         logger.warning(f"Skill id={skill_id} not found")
+        raise HTTPException(status_code=404, detail="Skill not found")
 

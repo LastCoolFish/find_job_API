@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.sqltypes import Text, DateTime, Integer
 
 from db.models import CustomerModel
-from db.models.BaseModel import BaseModel
+from db.models.BaseModels import BaseModel
 
 
 class OrderModel(BaseModel):

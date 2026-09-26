@@ -2,8 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from db.models.EventModel import EventTarget
 from logging_config import get_logger
 from repositories.AnalyticsRepository import AnalyticsRepository
+from repositories.EventRepository import EventRepository
 from schemas.analytics import CompanyVacancyCountSchema, EngagementAnalyticsSchema, SkillDemandSchema
 
 logger = get_logger(__name__)
@@ -11,6 +13,9 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 AnalyticsRepoDep = Annotated[AnalyticsRepository, Depends()]
+EventRepoDep = Annotated[EventRepository, Depends()]
+
+
 
 
 @router.get("/top-skills")
@@ -48,30 +53,30 @@ async def get_top_companies(
 
 
 @router.get("/vacancies/{vacancy_id}")
-async def get_vacancy_analytics(vacancy_id: int, analytics_repository: AnalyticsRepoDep) -> EngagementAnalyticsSchema:
+async def get_vacancy_analytics(vacancy_id: int, event_repository: EventRepoDep) -> EngagementAnalyticsSchema:
     """
     The `/analytics/vacancies/{vacancy_id}` endpoint returns engagement analytics
     for a single vacancy: average view duration, link clicks, total views and CTR.
 
     :param vacancy_id: id of the vacancy to compute analytics for
-    :param analytics_repository: Depends(AnalyticsRepository)
+    :param event_repository: Depends(EventRepository)
     :return: engagement analytics for the vacancy
     """
     logger.info(f"Fetching vacancy analytics vacancy_id={vacancy_id}")
-    data = await analytics_repository.get_vacancy_analytic_info(vacancy_id)
+    data = await event_repository.get_analytic_info(EventTarget.VACANCY, vacancy_id)
     return EngagementAnalyticsSchema.model_validate(data)
 
 
 @router.get("/orders/{order_id}")
-async def get_order_analytics(order_id: int, analytics_repository: AnalyticsRepoDep) -> EngagementAnalyticsSchema:
+async def get_order_analytics(order_id: int, event_repository: EventRepoDep) -> EngagementAnalyticsSchema:
     """
     The `/analytics/orders/{order_id}` endpoint returns engagement analytics
     for a single order: average view duration, link clicks, total views and CTR.
 
     :param order_id: id of the order to compute analytics for
-    :param analytics_repository: Depends(AnalyticsRepository)
+    :param event_repository: Depends(EventRepository)
     :return: engagement analytics for the order
     """
     logger.info(f"Fetching order analytics order_id={order_id}")
-    data = await analytics_repository.get_order_analytic_info(order_id)
+    data = await event_repository.get_analytic_info(EventTarget.ORDER, order_id)
     return EngagementAnalyticsSchema.model_validate(data)

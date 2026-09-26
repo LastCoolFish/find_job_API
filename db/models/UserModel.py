@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.sql.sqltypes import DateTime
 
-from db.models.BaseModel import BaseModel
+from db.models.BaseModels import BaseModel
 
 
 class RoleEnum(str, enum.Enum):

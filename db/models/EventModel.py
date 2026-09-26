@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from sqlalchemy.sql.sqltypes import DateTime, Integer
 
-from db.models.BaseModel import BaseModel
+from db.models.BaseModels import BaseModel
 
 
 class EventTypeEnum(str, enum.Enum):
@@ -17,6 +17,11 @@ class EventTypeEnum(str, enum.Enum):
     VIEW_END = "view_end"
     LINK_CLICK = "link_click"
     SEARCH = "search"
+
+
+class EventTarget(str, enum.Enum):
+    VACANCY = "vacancy"
+    ORDER = "order"
 
 
 class EventModel(BaseModel):

@@ -1,59 +1,69 @@
-from sqlalchemy import select, func
+from typing import Any
+
+from sqlalchemy import select, func, Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import request
-from db.models.EventModel import EventModel, EventTypeEnum
+from db.models.EventModel import EventModel, EventTarget, EventTypeEnum
 from logging_config import get_logger
 from repositories.BaseRepository import BaseRepository
 
 logger = get_logger(__name__)
+
+_TARGET_COLUMN = {
+    EventTarget.VACANCY: EventModel.vacancy_id,
+    EventTarget.ORDER: EventModel.order_id,
+}
 
 
 class EventRepository(BaseRepository[EventModel]):
     model = EventModel
 
     @request
-    async def get_orders_views(self, order_ids: list[int], session: AsyncSession) -> dict[int, int]:
+    async def get_views(self, target: EventTarget, ids: list[int], session: AsyncSession) -> dict[int, int]:
         """
-        Returns the VIEW_START count per order for all given order ids in a single query,
-        instead of one query per order.
+        Returns the VIEW_START count per vacancy/order for all given ids in a single query,
+        instead of one query per item.
 
-        :param order_ids: ids of the orders to count views for
+        :param target: EventTarget.VACANCY or EventTarget.ORDER - which id column to group by
+        :param ids: ids of the vacancies/orders to count views for
         :param session: sqlalchemy.ext.asyncio.AsyncSession
-        :return: dict of {order_id: view_count}; orders with no views get 0
+        :return: dict of {id: view_count}; ids with no views get 0
         """
+        column = _TARGET_COLUMN[target]
         query = (
-            select(func.count().label("views"), EventModel.order_id)
-            .where(
-                EventModel.order_id.in_(order_ids),
-                EventModel.event_type == EventTypeEnum.VIEW_START,
-            )
-            .group_by(EventModel.order_id)
+            select(column, func.count().label("views"))
+            .where(column.in_(ids), EventModel.event_type == EventTypeEnum.VIEW_START)
+            .group_by(column)
         )
-        result = await session.execute(query)
-        views_by_order = {order_id: views for views, order_id in result.all()}
+        counts = dict((await session.execute(query)).all())
 
-        return {order_id: views_by_order.get(order_id, 0) for order_id in order_ids}
+        return {i: counts.get(i, 0) for i in ids}
 
     @request
-    async def get_vacancies_views(self, vacancies_ids: list[int], session: AsyncSession) -> dict[int, int]:
+    async def get_analytic_info(
+        self, target: EventTarget, target_id: int, session: AsyncSession
+    ) -> Row[tuple[Any, Any, Any]]:
         """
-        Returns the VIEW_START count per vacancy for all given vacancy ids in a single query,
-        instead of one query per vacancy.
+        Returns engagement analytics for a single vacancy/order: average view duration,
+        number of link clicks and total views.
 
-        :param vacancies_ids: ids of the vacancies to count views for
+        :param target: EventTarget.VACANCY or EventTarget.ORDER - which id column to filter by
+        :param target_id: id of the vacancy/order to compute analytics for
         :param session: sqlalchemy.ext.asyncio.AsyncSession
-        :return: dict of {vacancy_id: view_count}; vacancies with no views get 0
+        :return: Row with avg_view_duration (None if never viewed), link_clicks, total_views
         """
-        query = (
-            select(func.count().label("views"), EventModel.vacancy_id)
-            .where(
-                EventModel.vacancy_id.in_(vacancies_ids),
-                EventModel.event_type == EventTypeEnum.VIEW_START,
-            )
-            .group_by(EventModel.vacancy_id)
-        )
-        result = await session.execute(query)
-        views_by_vacancy = {vacancy_id: views for views, vacancy_id in result.all()}
+        column = _TARGET_COLUMN[target]
+        query = select(
+            func.avg(EventModel.duration_seconds).filter(
+                EventModel.event_type == EventTypeEnum.VIEW_END
+            ).label("avg_view_duration"),
+            func.count().filter(
+                EventModel.event_type == EventTypeEnum.LINK_CLICK
+            ).label("link_clicks"),
+            func.count().filter(
+                EventModel.event_type == EventTypeEnum.VIEW_START
+            ).label("total_views"),
+        ).where(column == target_id)
 
-        return {vacancy_id: views_by_vacancy.get(vacancy_id, 0) for vacancy_id in vacancies_ids}
+        return (await session.execute(query)).one()
