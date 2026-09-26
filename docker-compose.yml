@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: find_job_postgres
+      PORT: 5432
+    ports:
+      - "8000:8000"
+
+networks:
+  default:
+    external: true
+    name: find_job_network

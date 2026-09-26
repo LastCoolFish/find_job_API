@@ -88,3 +88,4 @@ async def delete_user(user_id: int, user_repository: UserRepoDep) -> None:
     user = await user_repository.delete_by_id(user_id)
     if user is None:
         logger.warning(f"User id={user_id} not found")
+        raise HTTPException(status_code=404, detail="User not found")

@@ -56,6 +56,11 @@ class VacancyModel(BaseModel):
         nullable=False,
     )
 
+    site_href: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
     company_id: Mapped[int] = mapped_column(
         ForeignKey(
             "companies.id",

@@ -94,3 +94,4 @@ async def delete_profile(profile_id: int, profile_repository: ProfileRepoDep) ->
     profile = await profile_repository.delete_by_id(profile_id)
     if profile is None:
         logger.warning(f"Profile id={profile_id} not found")
+        raise HTTPException(status_code=404, detail="Profile not found")

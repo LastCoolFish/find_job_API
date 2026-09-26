@@ -46,6 +46,11 @@ class OrderModel(BaseModel):
         nullable=False,
     )
 
+    site_href: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
     customer_id: Mapped[int] = mapped_column(
         ForeignKey(
             "customers.id",

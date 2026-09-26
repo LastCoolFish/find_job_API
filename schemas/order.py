@@ -20,6 +20,7 @@ class OrderOutSchema(BaseModel):
     publication_timestamp: datetime
     platform: str
     platform_id: int
+    site_href: str
     customer: CustomerBriefSchema
 
     model_config = {"from_attributes": True}
@@ -32,6 +33,7 @@ class OrderCreateSchema(BaseModel):
     publication_timestamp: datetime
     platform: str
     platform_id: int
+    site_href: str
     customer_id: int
 
 
@@ -42,4 +44,5 @@ class OrderUpdateSchema(BaseModel):
     publication_timestamp: datetime | None = None
     platform: str | None = None
     platform_id: int | None = None
+    site_href: str | None = None
     customer_id: int | None = None

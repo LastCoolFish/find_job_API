@@ -22,6 +22,7 @@ class VacancyOutSchema(BaseModel):
     format: str | None
     platform: str
     platform_id: int
+    site_href: str
     company: CompanyBriefSchema
     skills: list[SkillOutSchema]
 
@@ -37,6 +38,7 @@ class VacancyCreateSchema(BaseModel):
     format: str | None = None
     platform: str
     platform_id: int
+    site_href: str
     company_id: int
 
 
@@ -49,4 +51,5 @@ class VacancyUpdateSchema(BaseModel):
     format: str | None = None
     platform: str | None = None
     platform_id: int | None = None
+    site_href: str | None = None
     company_id: int | None = None
