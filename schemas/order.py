@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
+
+OrderSortField = Literal["id", "name", "price", "publication_timestamp"]
 
 
 class CustomerBriefSchema(BaseModel):
@@ -35,6 +38,14 @@ class OrderCreateSchema(BaseModel):
     platform_id: int
     site_href: str
     customer_id: int
+
+
+class OrderFilterSchema(BaseModel):
+    name: str | None = None
+    price_min: int | None = None
+    price_max: int | None = None
+    platform: str | None = None
+    customer_id: int | None = None
 
 
 class OrderUpdateSchema(BaseModel):

@@ -1,10 +1,17 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from logging_config import get_logger
 from repositories.OrderRepository import OrderRepository
-from schemas.order import OrderCreateSchema, OrderOutSchema, OrderUpdateSchema
+from schemas.common import SortOrder
+from schemas.order import (
+    OrderCreateSchema,
+    OrderFilterSchema,
+    OrderOutSchema,
+    OrderSortField,
+    OrderUpdateSchema,
+)
 
 logger = get_logger(__name__)
 
@@ -14,15 +21,71 @@ OrderRepoDep = Annotated[OrderRepository, Depends()]
 
 
 @router.get("")
-async def get_all_orders(order_repository: OrderRepoDep) -> list[OrderOutSchema]:
+async def get_all_orders(
+        order_repository: OrderRepoDep,
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        sort_by: OrderSortField | None = None,
+        order: SortOrder = "asc",
+) -> list[OrderOutSchema]:
     """
     The base endpoint `/orders` returns all orders.
 
     :param order_repository: Depends(OrderRepository)
+    :param limit: max number of orders to return, or None for no limit
+    :param offset: number of orders to skip
+    :param sort_by: column to sort by, or None to leave the result unsorted
+    :param order: "asc" or "desc"
     :return: all orders
     """
-    logger.info("Fetching all orders")
-    orders = await order_repository.get_all()
+    logger.info(f"Fetching all orders limit={limit} offset={offset} sort_by={sort_by} order={order}")
+    orders = await order_repository.get_all(limit=limit, offset=offset, sort_by=sort_by, order=order)
+    return [OrderOutSchema.model_validate(order) for order in orders]
+
+
+@router.get("/search")
+async def search_orders(
+        order_repository: OrderRepoDep,
+        name: str | None = None,
+        price_min: int | None = None,
+        price_max: int | None = None,
+        platform: str | None = None,
+        customer_id: int | None = None,
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        sort_by: OrderSortField | None = None,
+        order: SortOrder = "asc",
+) -> list[OrderOutSchema]:
+    """
+    The `/orders/search` endpoint returns orders matching every given filter.
+    Filters left unset are ignored.
+
+    :param order_repository: Depends(OrderRepository)
+    :param name: substring to match against name (case-insensitive)
+    :param price_min: minimum price (inclusive)
+    :param price_max: maximum price (inclusive)
+    :param platform: exact platform to match
+    :param customer_id: exact customer id to match
+    :param limit: max number of orders to return, or None for no limit
+    :param offset: number of matching orders to skip
+    :param sort_by: column to sort by, or None to leave the result unsorted
+    :param order: "asc" or "desc"
+    :return: orders matching all provided filters
+    """
+    filters = OrderFilterSchema(
+        name=name,
+        price_min=price_min,
+        price_max=price_max,
+        platform=platform,
+        customer_id=customer_id,
+    )
+    logger.info(
+        f"Searching orders filters={filters.model_dump(exclude_none=True)} "
+        f"limit={limit} offset={offset} sort_by={sort_by} order={order}"
+    )
+    orders = await order_repository.get_filtered(
+        filters, limit=limit, offset=offset, sort_by=sort_by, order=order
+    )
     return [OrderOutSchema.model_validate(order) for order in orders]
 
 

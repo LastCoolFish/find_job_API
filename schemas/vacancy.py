@@ -1,6 +1,10 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 from schemas.skill import SkillOutSchema
+
+VacancySortField = Literal["id", "job_title", "salary", "grade", "place"]
 
 
 class CompanyBriefSchema(BaseModel):
@@ -40,6 +44,17 @@ class VacancyCreateSchema(BaseModel):
     platform_id: int
     site_href: str
     company_id: int
+
+
+class VacancyFilterSchema(BaseModel):
+    job_title: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    place: str | None = None
+    grade: int | None = None
+    format: str | None = None
+    platform: str | None = None
+    company_id: int | None = None
 
 
 class VacancyUpdateSchema(BaseModel):

@@ -26,6 +26,23 @@ async def get_all_profiles(profile_repository: ProfileRepoDep) -> list[ProfileOu
     return [ProfileOutSchema.model_validate(profile) for profile in profiles]
 
 
+@router.get("/by-user/{user_id}")
+async def get_profile_by_user_id(user_id: int, profile_repository: ProfileRepoDep) -> ProfileOutSchema:
+    """
+    The `/profiles/by-user/{user_id}` endpoint returns a single profile by user id.
+
+    :param user_id: id of the user whose profile to return
+    :param profile_repository: Depends(ProfileRepository)
+    :return: the profile, or 404 if it does not exist
+    """
+    logger.info(f"Fetching profile user_id={user_id}")
+    profile = await profile_repository.get_by_user_id(user_id)
+    if profile is None:
+        logger.warning(f"Profile user_id={user_id} not found")
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return ProfileOutSchema.model_validate(profile)
+
+
 @router.get("/{profile_id}")
 async def get_profile(profile_id: int, profile_repository: ProfileRepoDep) -> ProfileOutSchema:
     """

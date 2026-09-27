@@ -1,15 +1,48 @@
-from typing import TypeVar, Generic, Type
+from typing import Any, TypeVar, Generic, Type
 
-from sqlalchemy import select, delete, update
+from sqlalchemy import Select, select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import request
+from schemas.common import SortOrder
 
 tModel = TypeVar("tModel")
 
 
 class BaseRepository(Generic[tModel]):
     model: Type[tModel]
+
+    @staticmethod
+    def _paginate(query: Select, limit: int | None, offset: int) -> Select:
+        """
+        Applies offset/limit to a query if given. \n
+        It is a common helper for all repositories.
+
+        :param query: sqlalchemy.Select to paginate
+        :param limit: max number of rows to return, or None for no limit
+        :param offset: number of rows to skip
+        :return: the query with offset/limit applied
+        """
+        if offset:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+        return query
+
+    @staticmethod
+    def _sort(query: Select, column: Any | None, order: SortOrder) -> Select:
+        """
+        Applies an ORDER BY to a query if a column is given. \n
+        It is a common helper for all repositories.
+
+        :param query: sqlalchemy.Select to sort
+        :param column: the mapped column to sort by, or None to leave the query unsorted
+        :param order: "asc" or "desc"
+        :return: the query with ORDER BY applied
+        """
+        if column is None:
+            return query
+        return query.order_by(column.desc() if order == "desc" else column.asc())
 
     @request
     async def get_all(self, session: AsyncSession) -> list[tModel]:

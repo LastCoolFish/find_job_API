@@ -4,7 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from logging_config import get_logger
 from repositories.VacancyRepository import VacancyRepository
-from schemas.vacancy import VacancyCreateSchema, VacancyOutSchema, VacancyUpdateSchema
+from schemas.common import SortOrder
+from schemas.vacancy import (
+    VacancyCreateSchema,
+    VacancyFilterSchema,
+    VacancyOutSchema,
+    VacancySortField,
+    VacancyUpdateSchema,
+)
 
 logger = get_logger(__name__)
 
@@ -14,15 +21,25 @@ VacancyRepoDep = Annotated[VacancyRepository, Depends()]
 
 
 @router.get("")
-async def get_all_vacancies(vacancy_repository: VacancyRepoDep) -> list[VacancyOutSchema]:
+async def get_all_vacancies(
+        vacancy_repository: VacancyRepoDep,
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        sort_by: VacancySortField | None = None,
+        order: SortOrder = "asc",
+) -> list[VacancyOutSchema]:
     """
     The base endpoint `/vacancies` returns all vacancies.
 
     :param vacancy_repository: Depends(VacancyRepository)
+    :param limit: max number of vacancies to return, or None for no limit
+    :param offset: number of vacancies to skip
+    :param sort_by: column to sort by, or None to leave the result unsorted
+    :param order: "asc" or "desc"
     :return: all vacancies
     """
-    logger.info("Fetching all vacancies")
-    vacancies = await vacancy_repository.get_all()
+    logger.info(f"Fetching all vacancies limit={limit} offset={offset} sort_by={sort_by} order={order}")
+    vacancies = await vacancy_repository.get_all(limit=limit, offset=offset, sort_by=sort_by, order=order)
     return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
 
 
@@ -39,6 +56,61 @@ async def get_vacancies_by_skills(
     """
     logger.info(f"Fetching vacancies matching skills_id={skills_id}")
     vacancies = await vacancy_repository.get_by_skills(skills_id)
+    return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
+
+
+@router.get("/search")
+async def search_vacancies(
+        vacancy_repository: VacancyRepoDep,
+        job_title: str | None = None,
+        salary_min: int | None = None,
+        salary_max: int | None = None,
+        place: str | None = None,
+        grade: int | None = None,
+        format: str | None = None,
+        platform: str | None = None,
+        company_id: int | None = None,
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        sort_by: VacancySortField | None = None,
+        order: SortOrder = "asc",
+) -> list[VacancyOutSchema]:
+    """
+    The `/vacancies/search` endpoint returns vacancies matching every given filter.
+    Filters left unset are ignored.
+
+    :param vacancy_repository: Depends(VacancyRepository)
+    :param job_title: substring to match against job_title (case-insensitive)
+    :param salary_min: minimum salary (inclusive)
+    :param salary_max: maximum salary (inclusive)
+    :param place: substring to match against place (case-insensitive)
+    :param grade: exact grade to match
+    :param format: exact format to match
+    :param platform: exact platform to match
+    :param company_id: exact company id to match
+    :param limit: max number of vacancies to return, or None for no limit
+    :param offset: number of matching vacancies to skip
+    :param sort_by: column to sort by, or None to leave the result unsorted
+    :param order: "asc" or "desc"
+    :return: vacancies matching all provided filters
+    """
+    filters = VacancyFilterSchema(
+        job_title=job_title,
+        salary_min=salary_min,
+        salary_max=salary_max,
+        place=place,
+        grade=grade,
+        format=format,
+        platform=platform,
+        company_id=company_id,
+    )
+    logger.info(
+        f"Searching vacancies filters={filters.model_dump(exclude_none=True)} "
+        f"limit={limit} offset={offset} sort_by={sort_by} order={order}"
+    )
+    vacancies = await vacancy_repository.get_filtered(
+        filters, limit=limit, offset=offset, sort_by=sort_by, order=order
+    )
     return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
 
 
