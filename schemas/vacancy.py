@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from schemas.skill import SkillOutSchema
 
-VacancySortField = Literal["id", "job_title", "salary", "grade", "place"]
+VacancySortField = Literal["id", "job_title", "salary", "grade", "place", "views", "ctr"]
 
 
 class CompanyBriefSchema(BaseModel):

@@ -34,7 +34,7 @@ async def get_all_vacancies(
     :param vacancy_repository: Depends(VacancyRepository)
     :param limit: max number of vacancies to return, or None for no limit
     :param offset: number of vacancies to skip
-    :param sort_by: column to sort by, or None to leave the result unsorted
+    :param sort_by: vacancy column, or "views"/"ctr" to sort by engagement; None leaves the result unsorted
     :param order: "asc" or "desc"
     :return: all vacancies
     """
@@ -90,7 +90,7 @@ async def search_vacancies(
     :param company_id: exact company id to match
     :param limit: max number of vacancies to return, or None for no limit
     :param offset: number of matching vacancies to skip
-    :param sort_by: column to sort by, or None to leave the result unsorted
+    :param sort_by: vacancy column, or "views"/"ctr" to sort by engagement; None leaves the result unsorted
     :param order: "asc" or "desc"
     :return: vacancies matching all provided filters
     """

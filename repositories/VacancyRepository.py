@@ -1,9 +1,11 @@
-from sqlalchemy import select
+from sqlalchemy import Select, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.functions import count
+from sqlalchemy.sql.sqltypes import Float
 
 from db.engine import request
+from db.models.EventModel import EventModel, EventTypeEnum
 from db.models.SkillModel import SkillModel
 from db.models.VacancyModel import VacancyModel
 from db.models.VacancySkillModel import VacancySkillModel
@@ -22,9 +24,44 @@ _SORTABLE_COLUMNS = {
     "place": VacancyModel.place,
 }
 
+_ENGAGEMENT_SORT_FIELDS = {"views", "ctr"}
+
 
 class VacancyRepository(BaseRepository[VacancyModel]):
     model = VacancyModel
+
+    def _apply_sort(self, query: Select, sort_by: VacancySortField | None, order: SortOrder) -> Select:
+        """
+        Applies ORDER BY for either a plain vacancy column or an engagement metric
+        (views/ctr), which requires joining aggregated event counts first.
+
+        :param query: sqlalchemy.Select to sort
+        :param sort_by: column or engagement metric to sort by, or None to leave unsorted
+        :param order: "asc" or "desc"
+        :return: the query with ORDER BY (and, for engagement metrics, the join) applied
+        """
+        if sort_by not in _ENGAGEMENT_SORT_FIELDS:
+            return self._sort(query, _SORTABLE_COLUMNS.get(sort_by), order)
+
+        engagement = (
+            select(
+                EventModel.vacancy_id.label("vacancy_id"),
+                func.count().filter(EventModel.event_type == EventTypeEnum.VIEW_START).label("views"),
+                func.count().filter(EventModel.event_type == EventTypeEnum.LINK_CLICK).label("clicks"),
+            )
+            .where(EventModel.vacancy_id.isnot(None))
+            .group_by(EventModel.vacancy_id)
+            .subquery()
+        )
+        query = query.outerjoin(engagement, VacancyModel.id == engagement.c.vacancy_id)
+
+        views = func.coalesce(engagement.c.views, 0)
+        if sort_by == "views":
+            column = views
+        else:
+            column = cast(func.coalesce(engagement.c.clicks, 0), Float) / func.nullif(views, 0)
+
+        return self._sort(query, column, order)
 
     @request
     async def get_all(
@@ -39,7 +76,7 @@ class VacancyRepository(BaseRepository[VacancyModel]):
             selectinload(VacancyModel.company),
             selectinload(VacancyModel.skills),
         )
-        query = self._sort(query, _SORTABLE_COLUMNS.get(sort_by), order)
+        query = self._apply_sort(query, sort_by, order)
         query = self._paginate(query, limit, offset)
 
         result = await session.execute(query)
@@ -119,7 +156,7 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         if filters.company_id is not None:
             query = query.where(VacancyModel.company_id == filters.company_id)
 
-        query = self._sort(query, _SORTABLE_COLUMNS.get(sort_by), order)
+        query = self._apply_sort(query, sort_by, order)
         query = self._paginate(query, limit, offset)
 
         result = await session.execute(query)
