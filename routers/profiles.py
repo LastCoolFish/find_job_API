@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from logging_config import get_logger
 from repositories.ProfileRepository import ProfileRepository
+from repositories.SkillRepository import SkillRepository
 from schemas.profile import ProfileCreateSchema, ProfileOutSchema, ProfileUpdateSchema
 
 logger = get_logger(__name__)
@@ -11,6 +12,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
 ProfileRepoDep = Annotated[ProfileRepository, Depends()]
+SkillRepoDep = Annotated[SkillRepository, Depends()]
 
 
 @router.get("")
@@ -74,7 +76,8 @@ async def create_profile(payload: ProfileCreateSchema, profile_repository: Profi
     if not data["username"]:
         data["username"] = f"user_{data['user_id']}"
     logger.info(f"Creating profile user_id={payload.user_id} username={data['username']!r}")
-    profile = await profile_repository.create(**data)
+    created = await profile_repository.create(**data)
+    profile = await profile_repository.get_by_id(created.id)
     return ProfileOutSchema.model_validate(profile)
 
 
@@ -91,10 +94,75 @@ async def update_profile(
     :return: the updated profile, or 404 if it does not exist
     """
     logger.info(f"Updating profile id={profile_id}")
-    profile = await profile_repository.update_by_id(profile_id, **payload.model_dump(exclude_unset=True))
+    updated = await profile_repository.update_by_id(profile_id, **payload.model_dump(exclude_unset=True))
+    if updated is None:
+        logger.warning(f"Profile id={profile_id} not found")
+        raise HTTPException(status_code=404, detail="Profile not found")
+    profile = await profile_repository.get_by_id(profile_id)
+    return ProfileOutSchema.model_validate(profile)
+
+
+@router.post("/{profile_id}/skills/{skill_id}")
+async def add_profile_skill(
+    profile_id: int,
+    skill_id: int,
+    profile_repository: ProfileRepoDep,
+    skill_repository: SkillRepoDep,
+) -> ProfileOutSchema:
+    """
+    The `/profiles/{profile_id}/skills/{skill_id}` POST endpoint attaches a skill to a profile.
+    Attaching a skill that is already attached is a no-op.
+
+    :param profile_id: id of the profile to attach the skill to
+    :param skill_id: id of the skill to attach
+    :param profile_repository: Depends(ProfileRepository)
+    :param skill_repository: Depends(SkillRepository)
+    :return: the updated profile, or 404 if the profile or skill does not exist
+    """
+    profile = await profile_repository.get_by_id(profile_id)
     if profile is None:
         logger.warning(f"Profile id={profile_id} not found")
         raise HTTPException(status_code=404, detail="Profile not found")
+    skill = await skill_repository.get_by_id(skill_id)
+    if skill is None:
+        logger.warning(f"Skill id={skill_id} not found")
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    logger.info(f"Attaching skill_id={skill_id} to profile_id={profile_id}")
+    await profile_repository.add_skill(profile_id, skill_id)
+    profile = await profile_repository.get_by_id(profile_id)
+    return ProfileOutSchema.model_validate(profile)
+
+
+@router.delete("/{profile_id}/skills/{skill_id}")
+async def remove_profile_skill(
+    profile_id: int,
+    skill_id: int,
+    profile_repository: ProfileRepoDep,
+    skill_repository: SkillRepoDep,
+) -> ProfileOutSchema:
+    """
+    The `/profiles/{profile_id}/skills/{skill_id}` DELETE endpoint detaches a skill from a profile.
+    Detaching a skill that is not attached is a no-op.
+
+    :param profile_id: id of the profile to detach the skill from
+    :param skill_id: id of the skill to detach
+    :param profile_repository: Depends(ProfileRepository)
+    :param skill_repository: Depends(SkillRepository)
+    :return: the updated profile, or 404 if the profile or skill does not exist
+    """
+    profile = await profile_repository.get_by_id(profile_id)
+    if profile is None:
+        logger.warning(f"Profile id={profile_id} not found")
+        raise HTTPException(status_code=404, detail="Profile not found")
+    skill = await skill_repository.get_by_id(skill_id)
+    if skill is None:
+        logger.warning(f"Skill id={skill_id} not found")
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    logger.info(f"Detaching skill_id={skill_id} from profile_id={profile_id}")
+    await profile_repository.remove_skill(profile_id, skill_id)
+    profile = await profile_repository.get_by_id(profile_id)
     return ProfileOutSchema.model_validate(profile)
 
 

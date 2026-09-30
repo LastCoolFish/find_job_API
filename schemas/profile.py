@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from schemas.skill import SkillOutSchema
+
 
 class ProfileOutSchema(BaseModel):
     id: int
@@ -9,6 +11,7 @@ class ProfileOutSchema(BaseModel):
     desired_salary: int | None
     desired_format: str | None
     desired_grade: int | None
+    skills: list[SkillOutSchema]
 
     model_config = {"from_attributes": True}
 
