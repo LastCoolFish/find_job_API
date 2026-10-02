@@ -30,13 +30,14 @@ class OrderRepository(BaseRepository[OrderModel]):
         offset: int = 0,
         sort_by: OrderSortField | None = None,
         order: SortOrder = "asc",
-    ) -> list[OrderModel]:
+    ) -> tuple[list[OrderModel], int]:
         query = select(OrderModel).options(selectinload(OrderModel.customer))
         query = self._sort(query, _SORTABLE_COLUMNS.get(sort_by), order)
         query = self._paginate(query, limit, offset)
 
-        result = await session.execute(query)
-        return list(result.scalars().all())
+        items = list((await session.execute(query)).scalars().all())
+        total = await self._count(session)
+        return items, total
 
     @request
     async def get_by_id(self, model_id: int, session: AsyncSession) -> OrderModel | None:
@@ -47,6 +48,28 @@ class OrderRepository(BaseRepository[OrderModel]):
         )
         return result.scalars().one_or_none()
 
+    @staticmethod
+    def _build_conditions(filters: OrderFilterSchema) -> list:
+        """
+        Translates an OrderFilterSchema into a list of WHERE conditions; a filter
+        left as None does not contribute a condition.
+
+        :param filters: OrderFilterSchema - optional filter values
+        :return: list of SQLAlchemy conditions, to be applied with .where(*conditions)
+        """
+        conditions = []
+        if filters.name is not None:
+            conditions.append(OrderModel.name.ilike(f"%{filters.name}%"))
+        if filters.price_min is not None:
+            conditions.append(OrderModel.price >= filters.price_min)
+        if filters.price_max is not None:
+            conditions.append(OrderModel.price <= filters.price_max)
+        if filters.platform is not None:
+            conditions.append(OrderModel.platform == filters.platform)
+        if filters.customer_id is not None:
+            conditions.append(OrderModel.customer_id == filters.customer_id)
+        return conditions
+
     @request
     async def get_filtered(
         self,
@@ -56,7 +79,7 @@ class OrderRepository(BaseRepository[OrderModel]):
         offset: int = 0,
         sort_by: OrderSortField | None = None,
         order: SortOrder = "asc",
-    ) -> list[OrderModel]:
+    ) -> tuple[list[OrderModel], int]:
         """
         Returns orders matching every given filter; a filter left as None is not applied. \n
 
@@ -66,23 +89,15 @@ class OrderRepository(BaseRepository[OrderModel]):
         :param offset: number of matching orders to skip
         :param sort_by: column to sort by, or None to leave the result unsorted
         :param order: "asc" or "desc"
-        :return: orders matching all provided filters
+        :return: tuple of (orders matching all provided filters, total matching count)
         """
-        query = select(OrderModel).options(selectinload(OrderModel.customer))
+        conditions = self._build_conditions(filters)
 
-        if filters.name is not None:
-            query = query.where(OrderModel.name.ilike(f"%{filters.name}%"))
-        if filters.price_min is not None:
-            query = query.where(OrderModel.price >= filters.price_min)
-        if filters.price_max is not None:
-            query = query.where(OrderModel.price <= filters.price_max)
-        if filters.platform is not None:
-            query = query.where(OrderModel.platform == filters.platform)
-        if filters.customer_id is not None:
-            query = query.where(OrderModel.customer_id == filters.customer_id)
+        query = select(OrderModel).options(selectinload(OrderModel.customer)).where(*conditions)
 
         query = self._sort(query, _SORTABLE_COLUMNS.get(sort_by), order)
         query = self._paginate(query, limit, offset)
 
-        result = await session.execute(query)
-        return list(result.scalars().all())
+        items = list((await session.execute(query)).scalars().all())
+        total = await self._count(session, *conditions)
+        return items, total

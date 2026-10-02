@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from logging_config import get_logger
 from repositories.OrderRepository import OrderRepository
-from schemas.common import SortOrder
+from schemas.common import PaginatedResponse, SortOrder
 from schemas.order import (
     OrderCreateSchema,
     OrderFilterSchema,
@@ -27,7 +27,7 @@ async def get_all_orders(
         offset: Annotated[int, Query(ge=0)] = 0,
         sort_by: OrderSortField | None = None,
         order: SortOrder = "asc",
-) -> list[OrderOutSchema]:
+) -> PaginatedResponse[OrderOutSchema]:
     """
     The base endpoint `/orders` returns all orders.
 
@@ -36,11 +36,16 @@ async def get_all_orders(
     :param offset: number of orders to skip
     :param sort_by: column to sort by, or None to leave the result unsorted
     :param order: "asc" or "desc"
-    :return: all orders
+    :return: all orders, with the total count regardless of limit/offset
     """
     logger.info(f"Fetching all orders limit={limit} offset={offset} sort_by={sort_by} order={order}")
-    orders = await order_repository.get_all(limit=limit, offset=offset, sort_by=sort_by, order=order)
-    return [OrderOutSchema.model_validate(order) for order in orders]
+    orders, total = await order_repository.get_all(limit=limit, offset=offset, sort_by=sort_by, order=order)
+    return PaginatedResponse(
+        items=[OrderOutSchema.model_validate(order) for order in orders],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/search")
@@ -55,7 +60,7 @@ async def search_orders(
         offset: Annotated[int, Query(ge=0)] = 0,
         sort_by: OrderSortField | None = None,
         order: SortOrder = "asc",
-) -> list[OrderOutSchema]:
+) -> PaginatedResponse[OrderOutSchema]:
     """
     The `/orders/search` endpoint returns orders matching every given filter.
     Filters left unset are ignored.
@@ -70,7 +75,7 @@ async def search_orders(
     :param offset: number of matching orders to skip
     :param sort_by: column to sort by, or None to leave the result unsorted
     :param order: "asc" or "desc"
-    :return: orders matching all provided filters
+    :return: orders matching all provided filters, with the total matching count
     """
     filters = OrderFilterSchema(
         name=name,
@@ -83,10 +88,15 @@ async def search_orders(
         f"Searching orders filters={filters.model_dump(exclude_none=True)} "
         f"limit={limit} offset={offset} sort_by={sort_by} order={order}"
     )
-    orders = await order_repository.get_filtered(
+    orders, total = await order_repository.get_filtered(
         filters, limit=limit, offset=offset, sort_by=sort_by, order=order
     )
-    return [OrderOutSchema.model_validate(order) for order in orders]
+    return PaginatedResponse(
+        items=[OrderOutSchema.model_validate(order) for order in orders],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{order_id}")

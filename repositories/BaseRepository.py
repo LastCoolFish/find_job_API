@@ -1,6 +1,6 @@
 from typing import Any, TypeVar, Generic, Type
 
-from sqlalchemy import Select, select, delete, update
+from sqlalchemy import Select, func, select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import request
@@ -43,6 +43,21 @@ class BaseRepository(Generic[tModel]):
         if column is None:
             return query
         return query.order_by(column.desc() if order == "desc" else column.asc())
+
+    async def _count(self, session: AsyncSession, *conditions: Any) -> int:
+        """
+        Returns the number of rows in this repository's table matching the given conditions,
+        ignoring any sorting/pagination. \n
+        It is a common helper for all repositories.
+
+        :param session: sqlalchemy.AsyncSession
+        :param conditions: zero or more WHERE conditions to filter by
+        :return: matching row count
+        """
+        query = select(func.count()).select_from(self.model)
+        if conditions:
+            query = query.where(*conditions)
+        return (await session.execute(query)).scalar_one()
 
     @request
     async def get_all(self, session: AsyncSession) -> list[tModel]:

@@ -71,7 +71,7 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         offset: int = 0,
         sort_by: VacancySortField | None = None,
         order: SortOrder = "asc",
-    ) -> list[VacancyModel]:
+    ) -> tuple[list[VacancyModel], int]:
         query = select(VacancyModel).options(
             selectinload(VacancyModel.company),
             selectinload(VacancyModel.skills),
@@ -79,8 +79,9 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         query = self._apply_sort(query, sort_by, order)
         query = self._paginate(query, limit, offset)
 
-        result = await session.execute(query)
-        return list(result.scalars().all())
+        items = list((await session.execute(query)).scalars().all())
+        total = await self._count(session)
+        return items, total
 
     @request
     async def get_by_id(self, model_id: int, session: AsyncSession) -> VacancyModel | None:
@@ -113,6 +114,34 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         result = await session.execute(query)
         return list(result.scalars().all())
 
+    @staticmethod
+    def _build_conditions(filters: VacancyFilterSchema) -> list:
+        """
+        Translates a VacancyFilterSchema into a list of WHERE conditions; a filter
+        left as None does not contribute a condition.
+
+        :param filters: VacancyFilterSchema - optional filter values
+        :return: list of SQLAlchemy conditions, to be applied with .where(*conditions)
+        """
+        conditions = []
+        if filters.job_title is not None:
+            conditions.append(VacancyModel.job_title.ilike(f"%{filters.job_title}%"))
+        if filters.salary_min is not None:
+            conditions.append(VacancyModel.salary >= filters.salary_min)
+        if filters.salary_max is not None:
+            conditions.append(VacancyModel.salary <= filters.salary_max)
+        if filters.place is not None:
+            conditions.append(VacancyModel.place.ilike(f"%{filters.place}%"))
+        if filters.grade is not None:
+            conditions.append(VacancyModel.grade == filters.grade)
+        if filters.format is not None:
+            conditions.append(VacancyModel.format == filters.format)
+        if filters.platform is not None:
+            conditions.append(VacancyModel.platform == filters.platform)
+        if filters.company_id is not None:
+            conditions.append(VacancyModel.company_id == filters.company_id)
+        return conditions
+
     @request
     async def get_filtered(
         self,
@@ -122,7 +151,7 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         offset: int = 0,
         sort_by: VacancySortField | None = None,
         order: SortOrder = "asc",
-    ) -> list[VacancyModel]:
+    ) -> tuple[list[VacancyModel], int]:
         """
         Returns vacancies matching every given filter; a filter left as None is not applied. \n
 
@@ -132,32 +161,18 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         :param offset: number of matching vacancies to skip
         :param sort_by: column to sort by, or None to leave the result unsorted
         :param order: "asc" or "desc"
-        :return: vacancies matching all provided filters
+        :return: tuple of (vacancies matching all provided filters, total matching count)
         """
+        conditions = self._build_conditions(filters)
+
         query = select(VacancyModel).options(
             selectinload(VacancyModel.company),
             selectinload(VacancyModel.skills),
-        )
-
-        if filters.job_title is not None:
-            query = query.where(VacancyModel.job_title.ilike(f"%{filters.job_title}%"))
-        if filters.salary_min is not None:
-            query = query.where(VacancyModel.salary >= filters.salary_min)
-        if filters.salary_max is not None:
-            query = query.where(VacancyModel.salary <= filters.salary_max)
-        if filters.place is not None:
-            query = query.where(VacancyModel.place.ilike(f"%{filters.place}%"))
-        if filters.grade is not None:
-            query = query.where(VacancyModel.grade == filters.grade)
-        if filters.format is not None:
-            query = query.where(VacancyModel.format == filters.format)
-        if filters.platform is not None:
-            query = query.where(VacancyModel.platform == filters.platform)
-        if filters.company_id is not None:
-            query = query.where(VacancyModel.company_id == filters.company_id)
+        ).where(*conditions)
 
         query = self._apply_sort(query, sort_by, order)
         query = self._paginate(query, limit, offset)
 
-        result = await session.execute(query)
-        return list(result.scalars().all())
+        items = list((await session.execute(query)).scalars().all())
+        total = await self._count(session, *conditions)
+        return items, total

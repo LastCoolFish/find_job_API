@@ -7,6 +7,7 @@ from db.engine import request
 from db.models.EventModel import EventModel, EventTarget, EventTypeEnum
 from logging_config import get_logger
 from repositories.BaseRepository import BaseRepository
+from schemas.common import SortOrder
 
 logger = get_logger(__name__)
 
@@ -18,6 +19,39 @@ _TARGET_COLUMN = {
 
 class EventRepository(BaseRepository[EventModel]):
     model = EventModel
+
+    @request
+    async def get_by_user_id(
+        self,
+        user_id: int,
+        session: AsyncSession,
+        limit: int | None = None,
+        offset: int = 0,
+        event_type: EventTypeEnum | None = None,
+        order: SortOrder = "desc",
+    ) -> tuple[list[EventModel], int]:
+        """
+        Returns events recorded for a user, newest first by default. \n
+
+        :param user_id: id of the user whose events to return
+        :param session: sqlalchemy.AsyncSession
+        :param limit: max number of events to return, or None for no limit
+        :param offset: number of matching events to skip
+        :param event_type: restrict to a single event type, or None for all types
+        :param order: "asc" or "desc", by occurred_at
+        :return: tuple of (the user's events, total matching count)
+        """
+        conditions = [EventModel.user_id == user_id]
+        if event_type is not None:
+            conditions.append(EventModel.event_type == event_type)
+
+        query = select(EventModel).where(*conditions)
+        query = self._sort(query, EventModel.occurred_at, order)
+        query = self._paginate(query, limit, offset)
+
+        items = list((await session.execute(query)).scalars().all())
+        total = await self._count(session, *conditions)
+        return items, total
 
     @request
     async def get_views(self, target: EventTarget, ids: list[int], session: AsyncSession) -> dict[int, int]:

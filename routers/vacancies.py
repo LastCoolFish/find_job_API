@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from logging_config import get_logger
 from repositories.VacancyRepository import VacancyRepository
-from schemas.common import SortOrder
+from schemas.common import PaginatedResponse, SortOrder
 from schemas.vacancy import (
     VacancyCreateSchema,
     VacancyFilterSchema,
@@ -27,7 +27,7 @@ async def get_all_vacancies(
         offset: Annotated[int, Query(ge=0)] = 0,
         sort_by: VacancySortField | None = None,
         order: SortOrder = "asc",
-) -> list[VacancyOutSchema]:
+) -> PaginatedResponse[VacancyOutSchema]:
     """
     The base endpoint `/vacancies` returns all vacancies.
 
@@ -36,11 +36,16 @@ async def get_all_vacancies(
     :param offset: number of vacancies to skip
     :param sort_by: vacancy column, or "views"/"ctr" to sort by engagement; None leaves the result unsorted
     :param order: "asc" or "desc"
-    :return: all vacancies
+    :return: all vacancies, with the total count regardless of limit/offset
     """
     logger.info(f"Fetching all vacancies limit={limit} offset={offset} sort_by={sort_by} order={order}")
-    vacancies = await vacancy_repository.get_all(limit=limit, offset=offset, sort_by=sort_by, order=order)
-    return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
+    vacancies, total = await vacancy_repository.get_all(limit=limit, offset=offset, sort_by=sort_by, order=order)
+    return PaginatedResponse(
+        items=[VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/by-skills")
@@ -74,7 +79,7 @@ async def search_vacancies(
         offset: Annotated[int, Query(ge=0)] = 0,
         sort_by: VacancySortField | None = None,
         order: SortOrder = "asc",
-) -> list[VacancyOutSchema]:
+) -> PaginatedResponse[VacancyOutSchema]:
     """
     The `/vacancies/search` endpoint returns vacancies matching every given filter.
     Filters left unset are ignored.
@@ -92,7 +97,7 @@ async def search_vacancies(
     :param offset: number of matching vacancies to skip
     :param sort_by: vacancy column, or "views"/"ctr" to sort by engagement; None leaves the result unsorted
     :param order: "asc" or "desc"
-    :return: vacancies matching all provided filters
+    :return: vacancies matching all provided filters, with the total matching count
     """
     filters = VacancyFilterSchema(
         job_title=job_title,
@@ -108,10 +113,15 @@ async def search_vacancies(
         f"Searching vacancies filters={filters.model_dump(exclude_none=True)} "
         f"limit={limit} offset={offset} sort_by={sort_by} order={order}"
     )
-    vacancies = await vacancy_repository.get_filtered(
+    vacancies, total = await vacancy_repository.get_filtered(
         filters, limit=limit, offset=offset, sort_by=sort_by, order=order
     )
-    return [VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies]
+    return PaginatedResponse(
+        items=[VacancyOutSchema.model_validate(vacancy) for vacancy in vacancies],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{vacancy_id}")

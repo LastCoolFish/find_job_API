@@ -1,9 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from db.models.EventModel import EventTypeEnum
 from logging_config import get_logger
+from repositories.EventRepository import EventRepository
 from repositories.UserRepository import UserRepository
+from schemas.common import PaginatedResponse, SortOrder
+from schemas.event import EventOutSchema
 from schemas.user import UserCreateSchema, UserOutSchema, UserUpdateSchema
 
 logger = get_logger(__name__)
@@ -11,6 +15,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 
 UserRepoDep = Annotated[UserRepository, Depends()]
+EventRepoDep = Annotated[EventRepository, Depends()]
 
 
 @router.get("")
@@ -41,6 +46,49 @@ async def get_user(user_id: int, user_repository: UserRepoDep) -> UserOutSchema:
         logger.warning(f"User id={user_id} not found")
         raise HTTPException(status_code=404, detail="User not found")
     return UserOutSchema.model_validate(user)
+
+
+@router.get("/{user_id}/events")
+async def get_user_events(
+        user_id: int,
+        user_repository: UserRepoDep,
+        event_repository: EventRepoDep,
+        event_type: EventTypeEnum | None = None,
+        limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        order: SortOrder = "desc",
+) -> PaginatedResponse[EventOutSchema]:
+    """
+    The `/users/{user_id}/events` endpoint returns the user's recorded activity
+    (view start/end, link click, search), newest first by default.
+
+    :param user_id: id of the user whose events to return
+    :param user_repository: Depends(UserRepository)
+    :param event_repository: Depends(EventRepository)
+    :param event_type: restrict to a single event type, or None for all types
+    :param limit: max number of events to return, or None for no limit
+    :param offset: number of matching events to skip
+    :param order: "asc" or "desc", by occurred_at
+    :return: the user's events, or 404 if the user does not exist
+    """
+    user = await user_repository.get_by_id(user_id)
+    if user is None:
+        logger.warning(f"User id={user_id} not found")
+        raise HTTPException(status_code=404, detail="User not found")
+
+    logger.info(
+        f"Fetching events user_id={user_id} event_type={event_type} "
+        f"limit={limit} offset={offset} order={order}"
+    )
+    events, total = await event_repository.get_by_user_id(
+        user_id, limit=limit, offset=offset, event_type=event_type, order=order
+    )
+    return PaginatedResponse(
+        items=[EventOutSchema.model_validate(event) for event in events],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("", status_code=201)
