@@ -40,6 +40,19 @@ class OrderRepository(BaseRepository[OrderModel]):
         return items, total
 
     @request
+    async def get_platforms(self, session: AsyncSession) -> list[str]:
+        """
+        Returns the distinct platform values used across all orders, sorted alphabetically.
+
+        :param session: sqlalchemy.AsyncSession
+        :return: list of distinct platform names
+        """
+        result = await session.execute(
+            select(OrderModel.platform).distinct().order_by(OrderModel.platform)
+        )
+        return list(result.scalars().all())
+
+    @request
     async def get_by_id(self, model_id: int, session: AsyncSession) -> OrderModel | None:
         result = await session.execute(
             select(OrderModel)

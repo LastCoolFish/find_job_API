@@ -48,6 +48,18 @@ async def get_all_orders(
     )
 
 
+@router.get("/platforms")
+async def get_order_platforms(order_repository: OrderRepoDep) -> list[str]:
+    """
+    The `/orders/platforms` endpoint returns the distinct platform values used by orders.
+
+    :param order_repository: Depends(OrderRepository)
+    :return: list of distinct platform names
+    """
+    logger.info("Fetching distinct order platforms")
+    return await order_repository.get_platforms()
+
+
 @router.get("/search")
 async def search_orders(
         order_repository: OrderRepoDep,

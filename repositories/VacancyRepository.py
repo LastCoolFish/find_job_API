@@ -96,6 +96,19 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         return result.scalars().one_or_none()
 
     @request
+    async def get_platforms(self, session: AsyncSession) -> list[str]:
+        """
+        Returns the distinct platform values used across all vacancies, sorted alphabetically.
+
+        :param session: sqlalchemy.AsyncSession
+        :return: list of distinct platform names
+        """
+        result = await session.execute(
+            select(VacancyModel.platform).distinct().order_by(VacancyModel.platform)
+        )
+        return list(result.scalars().all())
+
+    @request
     async def get_by_skills(self, skills_id: list[int], session: AsyncSession) -> list[VacancyModel]:
         subquery = (select(VacancySkillModel.vacancy_id)
                  .where(VacancySkillModel.skill_id.in_(skills_id))

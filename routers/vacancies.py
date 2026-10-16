@@ -48,6 +48,18 @@ async def get_all_vacancies(
     )
 
 
+@router.get("/platforms")
+async def get_vacancy_platforms(vacancy_repository: VacancyRepoDep) -> list[str]:
+    """
+    The `/vacancies/platforms` endpoint returns the distinct platform values used by vacancies.
+
+    :param vacancy_repository: Depends(VacancyRepository)
+    :return: list of distinct platform names
+    """
+    logger.info("Fetching distinct vacancy platforms")
+    return await vacancy_repository.get_platforms()
+
+
 @router.get("/by-skills")
 async def get_vacancies_by_skills(
         skills_id: Annotated[list[int], Query()],
