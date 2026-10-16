@@ -22,6 +22,20 @@ _SORTABLE_COLUMNS = {
 class OrderRepository(BaseRepository[OrderModel]):
     model = OrderModel
 
+    @staticmethod
+    def _sort_conditions(sort_by: OrderSortField | None) -> list:
+        """
+        Extra WHERE conditions required to make a given sort meaningful.
+        Sorting by price excludes orders with no price, since a null price
+        has no defined position in an ascending/descending order.
+
+        :param sort_by: column to sort by, or None
+        :return: list of SQLAlchemy conditions, to be applied with .where(*conditions)
+        """
+        if sort_by == "price":
+            return [OrderModel.price.isnot(None)]
+        return []
+
     @request
     async def get_all(
         self,
@@ -31,12 +45,14 @@ class OrderRepository(BaseRepository[OrderModel]):
         sort_by: OrderSortField | None = None,
         order: SortOrder = "asc",
     ) -> tuple[list[OrderModel], int]:
-        query = select(OrderModel).options(selectinload(OrderModel.customer))
+        conditions = self._sort_conditions(sort_by)
+
+        query = select(OrderModel).options(selectinload(OrderModel.customer)).where(*conditions)
         query = self._sort(query, _SORTABLE_COLUMNS.get(sort_by), order)
         query = self._paginate(query, limit, offset)
 
         items = list((await session.execute(query)).scalars().all())
-        total = await self._count(session)
+        total = await self._count(session, *conditions)
         return items, total
 
     @request
@@ -104,7 +120,7 @@ class OrderRepository(BaseRepository[OrderModel]):
         :param order: "asc" or "desc"
         :return: tuple of (orders matching all provided filters, total matching count)
         """
-        conditions = self._build_conditions(filters)
+        conditions = self._build_conditions(filters) + self._sort_conditions(sort_by)
 
         query = select(OrderModel).options(selectinload(OrderModel.customer)).where(*conditions)
 

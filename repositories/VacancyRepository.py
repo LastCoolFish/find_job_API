@@ -63,6 +63,20 @@ class VacancyRepository(BaseRepository[VacancyModel]):
 
         return self._sort(query, column, order)
 
+    @staticmethod
+    def _sort_conditions(sort_by: VacancySortField | None) -> list:
+        """
+        Extra WHERE conditions required to make a given sort meaningful.
+        Sorting by salary excludes vacancies with no salary, since a null salary
+        has no defined position in an ascending/descending order.
+
+        :param sort_by: column or engagement metric to sort by, or None
+        :return: list of SQLAlchemy conditions, to be applied with .where(*conditions)
+        """
+        if sort_by == "salary":
+            return [VacancyModel.salary.isnot(None)]
+        return []
+
     @request
     async def get_all(
         self,
@@ -72,15 +86,18 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         sort_by: VacancySortField | None = None,
         order: SortOrder = "asc",
     ) -> tuple[list[VacancyModel], int]:
+        conditions = self._sort_conditions(sort_by)
+
         query = select(VacancyModel).options(
             selectinload(VacancyModel.company),
             selectinload(VacancyModel.skills),
-        )
+        ).where(*conditions)
+
         query = self._apply_sort(query, sort_by, order)
         query = self._paginate(query, limit, offset)
 
         items = list((await session.execute(query)).scalars().all())
-        total = await self._count(session)
+        total = await self._count(session, *conditions)
         return items, total
 
     @request
@@ -176,7 +193,7 @@ class VacancyRepository(BaseRepository[VacancyModel]):
         :param order: "asc" or "desc"
         :return: tuple of (vacancies matching all provided filters, total matching count)
         """
-        conditions = self._build_conditions(filters)
+        conditions = self._build_conditions(filters) + self._sort_conditions(sort_by)
 
         query = select(VacancyModel).options(
             selectinload(VacancyModel.company),

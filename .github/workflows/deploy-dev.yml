@@ -1,0 +1,24 @@
+name: Deploy dev
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            cd /root/find_job/find_job_API
+            git fetch origin
+            git checkout dev
+            git reset --hard origin/dev
+            docker compose up -d --build
