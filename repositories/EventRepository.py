@@ -56,8 +56,9 @@ class EventRepository(BaseRepository[EventModel]):
     @request
     async def get_views(self, target: EventTarget, ids: list[int], session: AsyncSession) -> dict[int, int]:
         """
-        Returns the VIEW_START count per vacancy/order for all given ids in a single query,
-        instead of one query per item.
+        Returns the count of distinct users who viewed each vacancy/order, for all given ids
+        in a single query instead of one query per item. Repeated views by the same user
+        count once.
 
         :param target: EventTarget.VACANCY or EventTarget.ORDER - which id column to group by
         :param ids: ids of the vacancies/orders to count views for
@@ -66,7 +67,7 @@ class EventRepository(BaseRepository[EventModel]):
         """
         column = _TARGET_COLUMN[target]
         query = (
-            select(column, func.count().label("views"))
+            select(column, func.count(func.distinct(EventModel.user_id)).label("views"))
             .where(column.in_(ids), EventModel.event_type == EventTypeEnum.VIEW_START)
             .group_by(column)
         )
@@ -80,7 +81,8 @@ class EventRepository(BaseRepository[EventModel]):
     ) -> Row[tuple[Any, Any, Any]]:
         """
         Returns engagement analytics for a single vacancy/order: average view duration,
-        number of link clicks and total views.
+        number of link clicks and total views (distinct users who viewed it - repeated
+        views by the same user count once).
 
         :param target: EventTarget.VACANCY or EventTarget.ORDER - which id column to filter by
         :param target_id: id of the vacancy/order to compute analytics for
@@ -95,7 +97,7 @@ class EventRepository(BaseRepository[EventModel]):
             func.count().filter(
                 EventModel.event_type == EventTypeEnum.LINK_CLICK
             ).label("link_clicks"),
-            func.count().filter(
+            func.count(func.distinct(EventModel.user_id)).filter(
                 EventModel.event_type == EventTypeEnum.VIEW_START
             ).label("total_views"),
         ).where(column == target_id)
