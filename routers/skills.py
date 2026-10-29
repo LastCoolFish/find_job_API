@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from dependencies import require_admin
 from logging_config import get_logger
 from repositories.SkillRepository import SkillRepository
 from schemas.skill import SkillCreateSchema, SkillOutSchema, SkillUpdateSchema
@@ -43,10 +44,12 @@ async def get_skill(skill_id: int, skill_repository: SkillRepoDep) -> SkillOutSc
     return SkillOutSchema.model_validate(skill)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 async def create_skill(payload: SkillCreateSchema, skill_repository: SkillRepoDep) -> SkillOutSchema:
     """
     The `/skills` POST endpoint creates a new skill.
+
+    Access: admins only.
 
     :param payload: SkillCreateSchema - data of the new skill
     :param skill_repository: Depends(SkillRepository)
@@ -57,10 +60,12 @@ async def create_skill(payload: SkillCreateSchema, skill_repository: SkillRepoDe
     return SkillOutSchema.model_validate(skill)
 
 
-@router.put("/{skill_id}")
+@router.put("/{skill_id}", dependencies=[Depends(require_admin)])
 async def update_skill(skill_id: int, payload: SkillUpdateSchema, skill_repository: SkillRepoDep) -> SkillOutSchema:
     """
     The `/skills/{skill_id}` PUT endpoint updates an existing skill.
+
+    Access: admins only.
 
     :param skill_id: id of the skill to update
     :param payload: SkillUpdateSchema - fields to update
@@ -75,10 +80,12 @@ async def update_skill(skill_id: int, payload: SkillUpdateSchema, skill_reposito
     return SkillOutSchema.model_validate(skill)
 
 
-@router.delete("/{skill_id}", status_code=204)
+@router.delete("/{skill_id}", status_code=204, dependencies=[Depends(require_admin)])
 async def delete_skill(skill_id: int, skill_repository: SkillRepoDep) -> None:
     """
     The `/skills/{skill_id}` DELETE endpoint deletes a skill by id.
+
+    Access: admins only.
 
     :param skill_id: id of the skill to delete
     :param skill_repository: Depends(SkillRepository)

@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from db.models.EventModel import EventTarget
+from dependencies import CurrentUser
 from logging_config import get_logger
 from repositories.EventRepository import EventRepository
 from schemas.event import EventCreate, EventOutSchema
@@ -15,17 +16,22 @@ EventRepoDep = Annotated[EventRepository, Depends()]
 
 
 @router.post("", status_code=201)
-async def create_event(event_data: EventCreate, event_repository: EventRepoDep) -> EventOutSchema:
+async def create_event(
+        event_data: EventCreate, current_user: CurrentUser, event_repository: EventRepoDep
+) -> EventOutSchema:
     """
-    The `/events` POST endpoint records a user interaction event
-    (view start/end, link click, search).
+    The `/events` POST endpoint records an interaction event (view start/end, link click,
+    search) for the user the access token belongs to. The user is taken from the token,
+    never from the request body, so nobody can record events on behalf of someone else
+    (a `user_id` in the body is ignored).
 
     :param event_data: EventCreate - event data
+    :param current_user: Depends(get_current_user) - the authenticated user
     :param event_repository: Depends(EventRepository)
-    :return: the created event
+    :return: the created event; 401 without a valid access token, 403 if the user is blocked
     """
-    logger.info(f"Creating event user_id={event_data.user_id} event_type={event_data.event_type}")
-    event = await event_repository.create(**event_data.model_dump())
+    logger.info(f"Creating event user_id={current_user.id} event_type={event_data.event_type}")
+    event = await event_repository.create(user_id=current_user.id, **event_data.model_dump())
     return EventOutSchema.model_validate(event)
 
 

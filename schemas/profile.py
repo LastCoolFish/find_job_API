@@ -16,19 +16,13 @@ class ProfileOutSchema(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ProfileCreateSchema(BaseModel):
-    user_id: int
-    name: str | None = None
-    # If not provided, a username is auto-generated from the user id (see router).
-    username: str | None = None
-    desired_salary: int | None = None
-    desired_format: str | None = None
-    desired_grade: int | None = None
-
-
 class ProfileUpdateSchema(BaseModel):
     name: str | None = None
     username: str | None = None
     desired_salary: int | None = None
     desired_format: str | None = None
     desired_grade: int | None = None
+
+
+class ProfileSkillIdsSchema(BaseModel):
+    skill_ids: list[int]

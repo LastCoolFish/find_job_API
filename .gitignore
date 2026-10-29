@@ -14,5 +14,6 @@ api/logs/*.log.*
 
 .idea/
 
+kwork/
 
 

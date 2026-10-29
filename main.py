@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from logging_config import get_logger
 from routers.analytics import router as analytics_router
+from routers.auth import router as auth_router
 from routers.events import router as events_router
 from routers.health import router as health_router
 from routers.orders import router as orders_router
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(analytics_router)
+app.include_router(auth_router)
 app.include_router(events_router)
 app.include_router(health_router)
 app.include_router(orders_router)

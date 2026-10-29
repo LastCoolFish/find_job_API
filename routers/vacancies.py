@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from dependencies import require_admin
 from logging_config import get_logger
 from repositories.VacancyRepository import VacancyRepository
 from schemas.common import PaginatedResponse, SortOrder
@@ -153,10 +154,12 @@ async def get_vacancy(vacancy_id: int, vacancy_repository: VacancyRepoDep) -> Va
     return VacancyOutSchema.model_validate(vacancy)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 async def create_vacancy(payload: VacancyCreateSchema, vacancy_repository: VacancyRepoDep) -> VacancyOutSchema:
     """
     The `/vacancies` POST endpoint creates a new vacancy.
+
+    Access: admins only.
 
     :param payload: VacancyCreateSchema - data of the new vacancy
     :param vacancy_repository: Depends(VacancyRepository)
@@ -168,12 +171,14 @@ async def create_vacancy(payload: VacancyCreateSchema, vacancy_repository: Vacan
     return VacancyOutSchema.model_validate(vacancy)
 
 
-@router.put("/{vacancy_id}")
+@router.put("/{vacancy_id}", dependencies=[Depends(require_admin)])
 async def update_vacancy(
         vacancy_id: int, payload: VacancyUpdateSchema, vacancy_repository: VacancyRepoDep
 ) -> VacancyOutSchema:
     """
     The `/vacancies/{vacancy_id}` PUT endpoint updates an existing vacancy.
+
+    Access: admins only.
 
     :param vacancy_id: id of the vacancy to update
     :param payload: VacancyUpdateSchema - fields to update
@@ -189,10 +194,12 @@ async def update_vacancy(
     return VacancyOutSchema.model_validate(vacancy)
 
 
-@router.delete("/{vacancy_id}", status_code=204)
+@router.delete("/{vacancy_id}", status_code=204, dependencies=[Depends(require_admin)])
 async def delete_vacancy(vacancy_id: int, vacancy_repository: VacancyRepoDep) -> None:
     """
     The `/vacancies/{vacancy_id}` DELETE endpoint deletes a vacancy by id.
+
+    Access: admins only.
 
     :param vacancy_id: id of the vacancy to delete
     :param vacancy_repository: Depends(VacancyRepository)

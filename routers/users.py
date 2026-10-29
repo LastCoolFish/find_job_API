@@ -1,14 +1,17 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 
 from db.models.EventModel import EventTypeEnum
+from dependencies import require_admin, require_self
 from logging_config import get_logger
 from repositories.EventRepository import EventRepository
 from repositories.UserRepository import UserRepository
 from schemas.common import PaginatedResponse, SortOrder
 from schemas.event import EventOutSchema
-from schemas.user import UserCreateSchema, UserOutSchema, UserUpdateSchema
+from schemas.user import UserCreateSchema, UserOutSchema, UserUpdateSchema, UserWithProfileOutSchema
+from security import hash_password
 
 logger = get_logger(__name__)
 
@@ -18,10 +21,12 @@ UserRepoDep = Annotated[UserRepository, Depends()]
 EventRepoDep = Annotated[EventRepository, Depends()]
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_admin)])
 async def get_all_users(user_repository: UserRepoDep) -> list[UserOutSchema]:
     """
     The base endpoint `/users` returns all users.
+
+    Access: admins only.
 
     :param user_repository: Depends(UserRepository)
     :return: all users
@@ -31,10 +36,12 @@ async def get_all_users(user_repository: UserRepoDep) -> list[UserOutSchema]:
     return [UserOutSchema.model_validate(user) for user in users]
 
 
-@router.get("/{user_id}")
+@router.get("/{user_id}", dependencies=[Depends(require_self)])
 async def get_user(user_id: int, user_repository: UserRepoDep) -> UserOutSchema:
     """
     The `/users/{user_id}` endpoint returns a single user by id.
+
+    Access: only the user themselves.
 
     :param user_id: id of the user to return
     :param user_repository: Depends(UserRepository)
@@ -48,7 +55,7 @@ async def get_user(user_id: int, user_repository: UserRepoDep) -> UserOutSchema:
     return UserOutSchema.model_validate(user)
 
 
-@router.get("/{user_id}/events")
+@router.get("/{user_id}/events", dependencies=[Depends(require_admin)])
 async def get_user_events(
         user_id: int,
         user_repository: UserRepoDep,
@@ -61,6 +68,8 @@ async def get_user_events(
     """
     The `/users/{user_id}/events` endpoint returns the user's recorded activity
     (view start/end, link click, search), newest first by default.
+
+    Access: admins only.
 
     :param user_id: id of the user whose events to return
     :param user_repository: Depends(UserRepository)
@@ -92,23 +101,36 @@ async def get_user_events(
 
 
 @router.post("", status_code=201)
-async def create_user(payload: UserCreateSchema, user_repository: UserRepoDep) -> UserOutSchema:
+async def create_user(payload: UserCreateSchema, user_repository: UserRepoDep) -> UserWithProfileOutSchema:
     """
-    The `/users` POST endpoint creates a new user.
+    The `/users` POST endpoint registers a new user together with their profile in one
+    transaction. The password is stored only as a bcrypt hash; the role is always the
+    default (`user`) and cannot be set here. If the profile has no username, one is
+    generated from the user id.
 
-    :param payload: UserCreateSchema - data of the new user
+    :param payload: UserCreateSchema - email, phone, password and optional profile data
     :param user_repository: Depends(UserRepository)
-    :return: the created user
+    :return: the created user with their profile, or 409 if the email or username is taken
     """
     logger.info(f"Creating user email={payload.email!r}")
-    user = await user_repository.create(**payload.model_dump())
-    return UserOutSchema.model_validate(user)
+    hashed_password = await hash_password(payload.password.get_secret_value())
+    try:
+        user = await user_repository.create_with_profile(
+            user_data={"email": payload.email, "phone": payload.phone, "hashed_password": hashed_password},
+            profile_data=payload.profile.model_dump(),
+        )
+    except IntegrityError:
+        logger.warning(f"User email={payload.email!r} or its username already exists")
+        raise HTTPException(status_code=409, detail="User with this email or username already exists")
+    return UserWithProfileOutSchema.model_validate(user)
 
 
-@router.put("/{user_id}")
+@router.put("/{user_id}", dependencies=[Depends(require_admin)])
 async def update_user(user_id: int, payload: UserUpdateSchema, user_repository: UserRepoDep) -> UserOutSchema:
     """
     The `/users/{user_id}` PUT endpoint updates an existing user.
+
+    Access: admins only.
 
     :param user_id: id of the user to update
     :param payload: UserUpdateSchema - fields to update
@@ -123,10 +145,12 @@ async def update_user(user_id: int, payload: UserUpdateSchema, user_repository: 
     return UserOutSchema.model_validate(user)
 
 
-@router.delete("/{user_id}", status_code=204)
+@router.delete("/{user_id}", status_code=204, dependencies=[Depends(require_admin)])
 async def delete_user(user_id: int, user_repository: UserRepoDep) -> None:
     """
     The `/users/{user_id}` DELETE endpoint deletes a user by id.
+
+    Access: admins only.
 
     :param user_id: id of the user to delete
     :param user_repository: Depends(UserRepository)

@@ -5,6 +5,7 @@ from db.models.EventModel import EventModel
 from db.models.OrderModel import OrderModel
 from db.models.ProfileModel import ProfileModel
 from db.models.ProfileSkillModel import ProfileSkillModel
+from db.models.RefreshTokenModel import RefreshTokenModel
 from db.models.SkillModel import SkillModel
 from db.models.UserModel import UserModel
 from db.models.VacancyModel import VacancyModel

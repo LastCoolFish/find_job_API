@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from dependencies import require_admin
 from logging_config import get_logger
 from repositories.OrderRepository import OrderRepository
 from schemas.common import PaginatedResponse, SortOrder
@@ -128,10 +129,12 @@ async def get_order(order_id: int, order_repository: OrderRepoDep) -> OrderOutSc
     return OrderOutSchema.model_validate(order)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 async def create_order(payload: OrderCreateSchema, order_repository: OrderRepoDep) -> OrderOutSchema:
     """
     The `/orders` POST endpoint creates a new order.
+
+    Access: admins only.
 
     :param payload: OrderCreateSchema - data of the new order
     :param order_repository: Depends(OrderRepository)
@@ -143,12 +146,14 @@ async def create_order(payload: OrderCreateSchema, order_repository: OrderRepoDe
     return OrderOutSchema.model_validate(order)
 
 
-@router.put("/{order_id}")
+@router.put("/{order_id}", dependencies=[Depends(require_admin)])
 async def update_order(
     order_id: int, payload: OrderUpdateSchema, order_repository: OrderRepoDep
 ) -> OrderOutSchema:
     """
     The `/orders/{order_id}` PUT endpoint updates an existing order.
+
+    Access: admins only.
 
     :param order_id: id of the order to update
     :param payload: OrderUpdateSchema - fields to update
@@ -164,10 +169,12 @@ async def update_order(
     return OrderOutSchema.model_validate(order)
 
 
-@router.delete("/{order_id}", status_code=204)
+@router.delete("/{order_id}", status_code=204, dependencies=[Depends(require_admin)])
 async def delete_order(order_id: int, order_repository: OrderRepoDep) -> None:
     """
     The `/orders/{order_id}` DELETE endpoint deletes an order by id.
+
+    Access: admins only.
 
     :param order_id: id of the order to delete
     :param order_repository: Depends(OrderRepository)

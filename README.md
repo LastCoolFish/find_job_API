@@ -67,10 +67,27 @@ db/models/       ORM-модели таблиц
 | Заказы | `GET /orders`, `GET /orders/search`, `GET /orders/platforms`, `GET /orders/{id}`, `POST /orders`, `PUT /orders/{id}`, `DELETE /orders/{id}` |
 | Профили | `GET /profiles`, `GET /profiles/by-user/{user_id}`, `GET /profiles/{id}`, `POST /profiles`, `PUT /profiles/{id}`, `POST /profiles/{id}/skills/{skill_id}`, `DELETE /profiles/{id}/skills/{skill_id}`, `DELETE /profiles/{id}` |
 | Пользователи | `GET /users`, `GET /users/{id}`, `GET /users/{id}/events`, `POST /users`, `PUT /users/{id}`, `DELETE /users/{id}` |
+| Авторизация | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` |
 | Навыки | `GET /skills`, `GET /skills/{id}`, `POST /skills`, `PUT /skills/{id}`, `DELETE /skills/{id}` |
 | События | `POST /events`, `GET /events/orders-views`, `GET /events/vacancies-views` |
 | Аналитика | `GET /analytics/top-skills`, `GET /analytics/top-companies`, `GET /analytics/vacancies/{id}`, `GET /analytics/orders/{id}` |
 | Статус | `GET /health` |
+
+### Права доступа
+
+Токен передаётся заголовком `Authorization: Bearer <access_token>` (получить: `POST /auth/login`).
+
+| Ресурс | Открыто всем | Только админ | Только сам пользователь |
+|---|---|---|---|
+| Вакансии | все `GET` | `POST`, `PUT`, `DELETE` | |
+| Заказы | все `GET` | `POST`, `PUT`, `DELETE` | |
+| Навыки | все `GET` | `POST`, `PUT`, `DELETE` | |
+| Пользователи | `POST /users` (регистрация) | `GET /users`, `GET /users/{id}/events`, `PUT`, `DELETE` | `GET /users/{id}` |
+| Профили | `GET /profiles/by-user/{user_id}` | | владелец профиля: `PUT /profiles/{id}` и все операции с навыками профиля (включая `GET`) |
+| События | `GET` | | `POST /events` (пользователь берётся из токена) |
+
+Без токена — `401`, с токеном без нужных прав — `403`. Администратором пользователя можно сделать только напрямую в БД:
+`UPDATE users SET role = 'ADMIN' WHERE email = '...';`
 
 ## Запуск
 

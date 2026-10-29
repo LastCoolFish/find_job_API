@@ -6,7 +6,7 @@ from db.models.EventModel import EventTypeEnum
 
 
 class EventCreate(BaseModel):
-    user_id: int
+    # No user_id: the event always belongs to the user the access token identifies.
     event_type: EventTypeEnum
     vacancy_id: int | None = None
     order_id: int | None = None
